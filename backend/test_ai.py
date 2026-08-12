@@ -1,20 +1,24 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from openai import OpenAI
+from google import genai
 
 project_folder = Path(__file__).resolve().parent.parent
 env_file = project_folder / ".env"
 
 load_dotenv(env_file)
 
-api_key = os.getenv("OPENAI_API_KEY")
+api_key = os.getenv("GEMINI_API_KEY")
 
-client = OpenAI(api_key=api_key)
+if not api_key:
+    print("Gemini API key not found!")
+    exit()
 
-response = client.responses.create(
-    model="gpt-5-mini",
-    input="In one sentence, explain what an AI meeting assistant does."
+client = genai.Client(api_key=api_key)
+
+response = client.models.generate_content(
+    model="gemini-2.5-flash",
+    contents="In one sentence, explain what an AI meeting assistant does."
 )
 
-print(response.output_text)
+print(response.text)

@@ -7,6 +7,9 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from google import genai
 
+from .database import engine, Base
+from . import models
+
 
 # Load environment variables
 project_folder = Path(__file__).resolve().parent.parent
@@ -20,7 +23,12 @@ if not api_key:
 
 client = genai.Client(api_key=api_key)
 
+
+# Create FastAPI application
 app = FastAPI(title="MeetingMind AI")
+
+# Create database tables
+Base.metadata.create_all(bind=engine)
 
 
 class Meeting(BaseModel):

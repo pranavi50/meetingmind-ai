@@ -1,4 +1,5 @@
 import os
+import json
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -12,16 +13,13 @@ project_folder = Path(__file__).resolve().parent.parent
 env_file = project_folder / ".env"
 load_dotenv(env_file)
 
-# Get Gemini API key
 api_key = os.getenv("GEMINI_API_KEY")
 
 if not api_key:
     raise ValueError("GEMINI_API_KEY not found in .env file")
 
-# Create Gemini client
 client = genai.Client(api_key=api_key)
 
-# Create FastAPI application
 app = FastAPI(title="MeetingMind AI")
 
 
@@ -39,9 +37,9 @@ def home():
 def analyze_meeting(meeting: Meeting):
 
     prompt = f"""
-You are an AI meeting assistant.
+You are MeetingMind AI, an intelligent meeting analysis assistant.
 
-Analyze the following meeting transcript.
+Analyze this meeting transcript.
 
 Meeting Title:
 {meeting.title}
@@ -49,22 +47,35 @@ Meeting Title:
 Transcript:
 {meeting.transcript}
 
-Return the result in this exact structure:
+Return ONLY valid JSON.
 
-Summary:
-Write a short summary of the meeting.
+Use exactly this structure:
 
-Action Items:
-List each task and the person responsible for it.
+{{
+    "summary": "Short summary of the meeting",
+    "action_items": [
+        {{
+            "task": "Task description",
+            "owner": "Person responsible"
+        }}
+    ],
+    "decisions": [
+        "Important decision made"
+    ],
+    "deadlines": [
+        "Deadline mentioned"
+    ],
+    "important_points": [
+        "Other important information"
+    ]
+}}
 
-Decisions:
-List the important decisions made during the meeting.
-
-Deadlines:
-List any deadlines mentioned.
-
-Important Points:
-List other important information from the meeting.
+Rules:
+- Do not add Markdown.
+- Do not add ```json.
+- Return only the JSON object.
+- If something is not mentioned, return an empty array [].
+- Do not invent information.
 """
 
     response = client.models.generate_content(
@@ -72,7 +83,21 @@ List other important information from the meeting.
         contents=prompt
     )
 
+    try:
+        analysis = json.loads(response.text)
+
+    except json.JSONDecodeError:
+        return {
+            "title": meeting.title,
+            "error": "AI returned an invalid JSON response",
+            "raw_response": response.text
+        }
+
     return {
         "title": meeting.title,
-        "analysis": response.text
+        "summary": analysis.get("summary", ""),
+        "action_items": analysis.get("action_items", []),
+        "decisions": analysis.get("decisions", []),
+        "deadlines": analysis.get("deadlines", []),
+        "important_points": analysis.get("important_points", [])
     }
